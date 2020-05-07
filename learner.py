@@ -27,21 +27,20 @@ class BasedRegressor(nn.Module):
 
     def __init__(self):
         super(BasedRegressor, self).__init__()
-        self.fc1 = nn.Linear(3, 40)
+        self.fc1 = nn.Linear(1, 40)
         self.fc2 = nn.Linear(40, 40)
         self.fc3 = nn.Linear(40, 1)
 
-    def forward(self, x, weight=None, lr=0.01):
-        if weight is None:
-            weight = list(self.parameters())
-
+    def forward(self, x, params_dict=None, lr=0.01):
+        if params_dict is None:
+            params_dict = dict(self.named_parameters())
         x = F.relu(F.linear(input=x,
-                            weight=weight[0],
-                            bias=weight[1]))
+                            weight=params_dict['fc1.weight'],
+                            bias=params_dict['fc1.bias']))
         x = F.relu(F.linear(input=x,
-                            weight=weight[2],
-                            bias=weight[3]))
+                            weight=params_dict['fc2.weight'],
+                            bias=params_dict['fc2.bias']))
         y = F.linear(input=x,
-                    weight=weight[4],
-                    bias=weight[5])
+                     weight=params_dict['fc3.weight'],
+                     bias=params_dict['fc3.bias'])
         return y
