@@ -22,7 +22,7 @@ def main():
     for phase in ['train', 'dev', 'test']:
         col_data = gen_tasks(num_tasks[phase],
                              num_samples['adapt'] + num_samples['meta'])
-        for i, data in enumerate(col_data):
+        for data in col_data:
             task = {'f': None,
                     'x': None,
                     'y': None,

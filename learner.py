@@ -44,3 +44,60 @@ class BasedRegressor(nn.Module):
                      weight=params_dict['fc3.weight'],
                      bias=params_dict['fc3.bias'])
         return y
+
+class ConvBlock(nn.Module):
+
+    def __init__(self, in_channels, out_channels):
+        super(ConvBlock, self).__init__()
+        # 64 filters, filter size 3x3
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3)
+        self.bn = nn.BatchNorm2d(out_channels)
+
+    def forward(self, x):
+        """Use functional forward"""
+        pass
+
+
+def functional_forward(x, conv_weight, conv_bias, bn_weight, bn_bias):
+    x = F.conv2d(input=x,
+                weight=conv_weight,
+                bias=conv_bias,
+                stride=1, padding=1)
+    x = F.batch_norm(x,
+                     running_mean=None,
+                     running_var=None,
+                     weight=bn_weight,
+                     bias=bn_bias,
+                     training=True)
+    x = F.relu(x)
+    x = F.max_pool2d(x, kernel_size=2)
+    return x
+
+
+class MAMLImageNet(nn.Module):
+
+    def __init__(self, n_classes, n_filters):
+        super(MAMLImageNet, self).__init__()
+        self.n_classes = n_classes
+        self.n_filters = n_filters
+
+        self.block1 = ConvBlock(3, n_filters)
+        self.block2 = ConvBlock(n_filters, n_filters)
+        self.block3 = ConvBlock(n_filters, n_filters)
+        self.block4 = ConvBlock(n_filters, n_filters)
+        self.fc = nn.Linear(n_filters, n_classes)
+
+    def forward(self, x, params_dict=None):
+        if params_dict is None:
+            params_dict = dict(self.named_parameters())
+        for i in [1,2,3,4]:
+            x = functional_forward(x,
+                                   params_dict[f'block{i}.conv.weight'],
+                                   params_dict[f'block{i}.conv.bias'],
+                                   params_dict[f'block{i}.bn.weight'],
+                                   params_dict[f'block{i}.bn.bias'])
+        x = x.view(x.size(0), -1)
+        x = F.linear(x,
+                     params_dict['fc.weight'],
+                     params_dict['fc.bias'])
+        return x 
