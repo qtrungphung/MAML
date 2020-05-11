@@ -1,8 +1,10 @@
+import copy
 import torch
 import torch.nn.functional as F
+import numpy as np
+from data_gen import gen_tasks
 from utils import model_plot
 from learner import BasedRegressor
-import copy
 
 
 def adapt_model(model, lr, x, y, K: int = 1):

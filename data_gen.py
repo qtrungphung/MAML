@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 class WaveFunction:
@@ -56,7 +57,6 @@ def gen_tasks(num_tasks: int, num_samples: int = 10):
     x_range = np.arange(-5.0, 5.0, 0.001)  # as in paper [1]
     As, ps = task_sampler(num_tasks)
     wave_funcs = [WaveFunction(A, p) for A, p in zip(As, ps)]
-    data = []
     for wave_func in wave_funcs:
         xs = np.random.choice(x_range, size=(num_samples, 1))
         ys = wave_func(xs)

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import torch
 
 
 def model_plot(model, xs, x, y=None):
