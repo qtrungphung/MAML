@@ -38,7 +38,7 @@ def model_plot(model, xs, x, y=None):
 
 def main():
     # Hyper params
-    num_tasks = {'train': 100,
+    num_tasks = {'train': 120,
                  'dev': 10,
                  'test': 1
                  }
@@ -49,7 +49,7 @@ def main():
              'dev': [],
              'test': []
              }
-    num_epochs = 30
+    num_epochs = 40
     alpha = 0.01  # task learning rate
     beta = 0.01  # meta learning rate
     K = 1  # number of GD steps when adapt to a task

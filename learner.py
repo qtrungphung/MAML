@@ -119,9 +119,9 @@ class BayesRegressor(nn.Module):
 
     def __init__(self):
         super(BayesRegressor, self).__init__()
-        self.fc1 = nn.Linear(3, 20)
-        self.fc2 = nn.Linear(20, 20)
-        self.fc3 = nn.Linear(20, 1)
+        self.fc1 = nn.Linear(3, 40)
+        self.fc2 = nn.Linear(40, 40)
+        self.fc3 = nn.Linear(40, 1)
         self.rangt = []
         for i in np.arange(-15, 15, 0.5):
             for j in np.arange(-15, 15, 0.5):
