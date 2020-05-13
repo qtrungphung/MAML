@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 import os
 import shutil
 import torch
+from data_gen import gen_tasks
+import torch
+import torch.nn.functional as F 
 
 
 def model_plot(model, xs, x, y=None):
@@ -34,3 +37,21 @@ def rmdir(dir):
         shutil.rmtree(dir)
     except:
         pass
+
+def model_test(model):
+    num_samples = 100 
+
+    # Generate tasks
+    for data in gen_tasks(1, num_samples):
+        x, y, wf = data
+    x = torch.as_tensor(x, dtype=torch.float32)
+    y = torch.as_tensor(y, dtype=torch.float32)
+
+    y_hat = model(x)
+    loss = F.mse_loss(y_hat, y)
+    print("loss", loss)
+    plt.scatter(x, y, label='Ground Truth')
+    plt.scatter(x, y_hat.detach().numpy(), label='Prediction')
+    plt.savefig("model_test.png")
+    plt.show()
+

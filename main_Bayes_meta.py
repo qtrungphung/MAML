@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from data_gen import gen_tasks
 from learner import BasedRegressor
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 def adapt_model(model, lr, x, y, K: int = 1):
@@ -36,6 +36,15 @@ def adapt_model(model, lr, x, y, K: int = 1):
 #     plt.show()
 
 def test():
+    num_samples = 100 
+
+    # Generate tasks
+    for data in gen_tasks(1, num_samples):
+        x, y, wf = data
+ 
+    x = torch.as_tensor(x, dtype=torch.float32)
+    y = torch.as_tensor(y, dtype=torch.float32)
+
     model_stack = []
     n_models = 120
     for i in range(n_models):
@@ -43,43 +52,6 @@ def test():
         model.load_state_dict(torch.load(
             './updated_BM_state_dict_m{}.pt'.format(i)))
         model_stack.append(model)
-
-    num_tasks = {'train': 1,
-                 'dev': 1,
-                 'test': 1
-                 }
-    num_samples = {'adapt': 10,
-                   'meta': 1
-                   }
-    tasks = {'train': [],
-             'dev': [],
-             'test': []
-             }
-
-    # Generate tasks
-    for phase in ['train', 'dev', 'test']:
-        col_data = gen_tasks(num_tasks[phase],
-                             num_samples['adapt'] + num_samples['meta'])
-        for i, data in enumerate(col_data):
-            task = {'f': None,
-                    'x': None,
-                    'y': None,
-                    'x_meta': None,
-                    'y_meta': None
-                    }
-            X, Y, task['f'] = data
-            task['x'] = torch.as_tensor(X[:num_samples['adapt']],
-                                        dtype=torch.float32)
-            task['y'] = torch.as_tensor(Y[:num_samples['adapt']],
-                                        dtype=torch.float32)
-            task['x_meta'] = torch.as_tensor(X[num_samples['adapt']:],
-                                             dtype=torch.float32)
-            task['y_meta'] = torch.as_tensor(Y[num_samples['adapt']:],
-                                             dtype=torch.float32)
-            tasks[phase].append(task)
-    
-    x = tasks['train'][0]['x']
-    y = tasks['train'][0]['y']
 
     y_hat = torch.zeros(1)
     Z = torch.zeros(1)
@@ -92,6 +64,10 @@ def test():
     y_hat = y_hat/Z
     loss = F.mse_loss(y_hat, y)
     print("loss", loss)
+    plt.scatter(x, y, label='Ground Truth')
+    plt.scatter(x, y_hat.detach().numpy(), label='Prediction')
+    plt.savefig("model_test.png")
+    plt.show()
 
 
 def main():

@@ -3,8 +3,9 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from data_gen import gen_tasks
-from utils import model_plot
+# from utils import model_plot
 from learner import BasedRegressor
+from utils import model_test
 
 
 def adapt_model(model, lr, x, y, K: int = 1):
@@ -125,28 +126,23 @@ def main():
     print("--- Testing ---")
     x = tasks['test'][0]['x']
     y = tasks['test'][0]['y']
-    x_meta = tasks['test'][0]['x_meta']
-    y_meta = tasks['test'][0]['y_meta']
-    x_range = np.arange(-10, 10, 0.001)
-    xs = torch.as_tensor(np.random.choice(x_range, size=(100, 1)),
-                         dtype=torch.float32)
     GD_step = 10
 
     print("MAML before training, before adaptation")
-    model_plot(untrained_model, xs, x, y)
+    # model_plot(untrained_model, xs, x, y)
     print("MAML before training, after adaptation (data = {}, steps = {})"
           .format(len(x), GD_step))
     adapt_untrained_model = adapt_model(
         untrained_model, alpha, x, y, K=GD_step)
-    model_plot(adapt_untrained_model, xs, x, y)
+    # model_plot(adapt_untrained_model, xs, x, y)
 
     print("MAML after training, before adaptation")
-    model_plot(model, xs, x, y)
+    # model_plot(model, xs, x, y)
     print("MAML after training, after adaptation (data = {}, steps = {})"
           .format(len(x), GD_step))
     adapted_model = adapt_model(model, alpha, x, y, K=GD_step)
-    model_plot(adapted_model, xs, x, y)
-
+    # model_plot(adapted_model, xs, x, y)
+    model_test(model)
 
 if __name__ == "__main__":
     print("Starting")
