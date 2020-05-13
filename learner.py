@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 
 class Rep(nn.Module):
@@ -101,3 +102,80 @@ class MAMLImageNet(nn.Module):
                      params_dict['fc.weight'],
                      params_dict['fc.bias'])
         return x 
+        
+
+class BayesRegressor(nn.Module):
+    """ test bayes regression 
+    
+    prediction for each theta1
+    model = g_z (x, theta1)
+    Bayes prediction: integrate over theta1:
+    y_hat = int over theta1 g_z(x, theta1)*exp(-loss_p)/Z
+    loss of each contribution
+    loss_p = loss(g_z(x, theta1), y)
+    Partition function
+    Z = sum over theta1 exp(-loss_p)
+    """
+
+    def __init__(self):
+        super(BayesRegressor, self).__init__()
+        self.fc1 = nn.Linear(3, 20)
+        self.fc2 = nn.Linear(20, 20)
+        self.fc3 = nn.Linear(20, 1)
+        self.rangt = []
+        for i in np.arange(-15, 15, 0.5):
+            for j in np.arange(-15, 15, 0.5):
+                a = torch.as_tensor([i, j], dtype=torch.float32)
+                self.rangt.append(a)
+        self.rangt = torch.stack(self.rangt, dim=0)
+        self.unnorm_ps = []
+        self.lamb = 1.5
+
+    def forward(self, x, y):
+        self.unnorm_ps = []
+        y_hat = torch.zeros(1)
+        self.Z = torch.zeros(1)
+        rangt = self.rangt + self.max_theta
+        # approx integral
+        for theta1 in rangt:
+            stack = []
+            for i in range(x.size(0)):
+                stack.append(theta1)
+            stack = torch.stack(stack, dim=0)
+            o = torch.cat((stack, x), dim=1)
+            o = F.relu(self.fc1(o))
+            o = F.relu(self.fc2(o))
+            o = self.fc3(o)
+            unnorm_p = torch.exp(-F.mse_loss(o, y))*self.lamb
+            y_hat = y_hat + o*unnorm_p
+            self.Z = self.Z + unnorm_p
+            self.unnorm_ps.append(unnorm_p)
+        self.unnorm_ps = torch.as_tensor(self.unnorm_ps)
+        y_hat = y_hat/self.Z
+        return y_hat
+
+    def predict(self, x):
+        y_hat = torch.zeros(1)
+        Z = torch.zeros(1)
+        rangt = self.rangt + self.max_theta
+        for theta1, unnorm_p in zip(rangt, self.unnorm_ps):
+            stack = []
+            for i in range(x.size(0)):
+                stack.append(theta1)
+            stack = torch.stack(stack, dim=0)
+            o = torch.cat((stack, x), dim=1)
+            o = F.relu(self.fc1(o))
+            o = F.relu(self.fc2(o))
+            o = self.fc3(o)
+            y_hat = y_hat + o*unnorm_p
+        y_hat = y_hat/self.Z
+        return y_hat
+
+    def prep_int_approx(self, x, y):
+        # find best theta to approx integral
+        with torch.no_grad():
+            self.max_theta = torch.zeros(2)
+            for j in range(10):
+                y_hat = self.forward(x, y)
+                max_id = torch.argmax(self.unnorm_ps)
+                self.max_theta = self.rangt[max_id]
