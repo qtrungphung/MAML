@@ -38,15 +38,16 @@ def rmdir(dir):
     except:
         pass
 
-def model_test(model):
-    num_samples = 100 
-
+def reg_test(model):
+    """Do a regression prediction test on model"""
     # Generate tasks
+    num_samples = 100 
     for data in gen_tasks(1, num_samples):
-        x, y, wf = data
+        x, y, _ = data
     x = torch.as_tensor(x, dtype=torch.float32)
     y = torch.as_tensor(y, dtype=torch.float32)
 
+    # Testing
     y_hat = model(x)
     loss = F.mse_loss(y_hat, y)
     print("loss", loss)
@@ -55,3 +56,29 @@ def model_test(model):
     plt.savefig("model_test.png")
     plt.show()
 
+def reg_test_B(models:list):
+    """Do a regression prediction test on model.
+    Expect list of model
+    """
+    # Generate tasks
+    num_samples = 100 
+    for data in gen_tasks(1, num_samples):
+        x, y, _ = data
+    x = torch.as_tensor(x, dtype=torch.float32)
+    y = torch.as_tensor(y, dtype=torch.float32)
+
+    # Testing
+    y_hat = torch.zeros(1)
+    Z = torch.zeros(1)
+    for i in range(len(models)):
+        o = models[i](x)
+        unnorm_p = torch.exp(-F.mse_loss(o, y))
+        y_hat = y_hat + o*unnorm_p
+        Z = Z + unnorm_p
+    y_hat = y_hat/Z
+    loss = F.mse_loss(y_hat, y)
+    print("loss", loss)
+    plt.scatter(x, y, label='Ground Truth')
+    plt.scatter(x, y_hat.detach().numpy(), label='Prediction')
+    plt.savefig("model_test.png")
+    plt.show()

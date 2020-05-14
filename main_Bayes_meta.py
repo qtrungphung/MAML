@@ -4,73 +4,10 @@ import torch.nn.functional as F
 import numpy as np
 from data_gen import gen_tasks
 from learner import BasedRegressor
-import matplotlib.pyplot as plt
+from utils import reg_test_B
 
 
-def adapt_model(model, lr, x, y, K: int = 1):
-    """Adapt a model to (x,y) set with K GD steps"""
-
-    optim = torch.optim.SGD(model.parameters(), lr=lr)
-    for k in range(K):
-        # forward
-        optim.zero_grad()
-        y_hat = model(x)
-        loss = F.mse_loss(y_hat, y)
-        # backward
-        loss.backward()
-        # update weights
-        with torch.no_grad():
-            optim.step()
-    return model
-
-
-# def model_plot(model, xs, x, y=None):
-#     model.prep_int_approx(x,y)
-#     with torch.no_grad():
-#         y_hat = model(x, y)
-#         y_hat = model.predict(xs)
-#     fig = plt.figure(figsize=(5, 4))
-#     if y is not None:
-#         plt.scatter(x, y, label='Ground Truth')
-#     plt.scatter(xs, y_hat, label='Prediction')
-#     plt.show()
-
-def test():
-    num_samples = 100 
-
-    # Generate tasks
-    for data in gen_tasks(1, num_samples):
-        x, y, wf = data
- 
-    x = torch.as_tensor(x, dtype=torch.float32)
-    y = torch.as_tensor(y, dtype=torch.float32)
-
-    model_stack = []
-    n_models = 120
-    for i in range(n_models):
-        model = BasedRegressor()
-        model.load_state_dict(torch.load(
-            './updated_BM_state_dict_m{}.pt'.format(i)))
-        model_stack.append(model)
-
-    y_hat = torch.zeros(1)
-    Z = torch.zeros(1)
-
-    for i in range(n_models):
-        o = model_stack[i](x)
-        unnorm_p = torch.exp(-F.mse_loss(o, y))
-        y_hat = y_hat + o*unnorm_p
-        Z = Z + unnorm_p
-    y_hat = y_hat/Z
-    loss = F.mse_loss(y_hat, y)
-    print("loss", loss)
-    plt.scatter(x, y, label='Ground Truth')
-    plt.scatter(x, y_hat.detach().numpy(), label='Prediction')
-    plt.savefig("model_test.png")
-    plt.show()
-
-
-def main():
+def train():
     # Hyper params
     num_tasks = {'train': 120,
                  'dev': 10,
@@ -134,8 +71,21 @@ def main():
             './updated_BM_state_dict_m{}.pt'.format(i))
     test()
 
+
+def test():
+    model_stack = []
+    n_models = 120
+    for i in range(n_models):
+        model = BasedRegressor()
+        model.load_state_dict(torch.load(
+            './updated_BM_state_dict_m{}.pt'.format(i)))
+        model_stack.append(model)
+    reg_test_B(model_stack)
+
+
 if __name__ == "__main__":
     print("Starting")
-    main()
+    train()
+    test()
     print("Finished")
 

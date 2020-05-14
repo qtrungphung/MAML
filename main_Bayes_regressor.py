@@ -2,90 +2,48 @@ import copy
 import torch
 import torch.nn.functional as F
 import numpy as np
+import matplotlib.pyplot as plt
 from data_gen import gen_tasks
 from learner import BayesRegressor
-import matplotlib.pyplot as plt
 
 
-def adapt_model(model, lr, x, y, K: int = 1):
-    """Adapt a model to (x,y) set with K GD steps"""
-
-    optim = torch.optim.SGD(model.parameters(), lr=lr)
-    for k in range(K):
-        # forward
-        optim.zero_grad()
-        y_hat = model(x)
-        loss = F.mse_loss(y_hat, y)
-        # backward
-        loss.backward()
-        # update weights
-        with torch.no_grad():
-            optim.step()
-    return model
-
-
-def model_plot(model, xs, x, y=None):
-    model.prep_int_approx(x,y)
-    with torch.no_grad():
-        y_hat = model(x, y)
-        y_hat = model.predict(xs)
-    fig = plt.figure(figsize=(5, 4))
-    if y is not None:
-        plt.scatter(x, y, label='Ground Truth')
-    plt.scatter(xs, y_hat, label='Prediction')
-    plt.show()
-
-
-def main():
-    # Hyper params
-    num_tasks = {'train': 120,
-                 'dev': 10,
-                 'test': 1
-                 }
-    num_samples = {'adapt': 10,
-                   'meta': 1
-                   }
-    tasks = {'train': [],
-             'dev': [],
-             'test': []
+# Hyper params
+num_tasks = {'train': 120,
+             'dev': 10
              }
-    num_epochs = 40
-    alpha = 0.01  # task learning rate
-    beta = 0.01  # meta learning rate
-    K = 1  # number of GD steps when adapt to a task
+num_samples = 10
+tasks = {'train': [],
+         'dev': [],
+         }
+train_epochs = 40
+alpha = 0.01  # task learning rate
+beta = 0.01  # meta learning rate
+K = 1  # number of GD steps when adapt to a task
 
+
+def train():
     # Generate tasks
-    for phase in ['train', 'dev', 'test']:
-        col_data = gen_tasks(num_tasks[phase],
-                             num_samples['adapt'] + num_samples['meta'])
+    for phase in ['train', 'dev']:
+        col_data = gen_tasks(num_tasks[phase], num_samples)
         for i, data in enumerate(col_data):
             task = {'f': None,
                     'x': None,
                     'y': None,
-                    'x_meta': None,
-                    'y_meta': None
                     }
             X, Y, task['f'] = data
-            task['x'] = torch.as_tensor(X[:num_samples['adapt']],
-                                        dtype=torch.float32)
-            task['y'] = torch.as_tensor(Y[:num_samples['adapt']],
-                                        dtype=torch.float32)
-            task['x_meta'] = torch.as_tensor(X[num_samples['adapt']:],
-                                             dtype=torch.float32)
-            task['y_meta'] = torch.as_tensor(Y[num_samples['adapt']:],
-                                             dtype=torch.float32)
+            task['x'] = torch.as_tensor(X, dtype=torch.float32)
+            task['y'] = torch.as_tensor(Y, dtype=torch.float32)
             tasks[phase].append(task)
 
     # Model
     model = BayesRegressor()
     torch.save(model.state_dict(), './untrained_Bayes_state_dict.pt')
-    untrained_model = copy.deepcopy(model)
     meta_optim = torch.optim.Adam(model.parameters(), lr=beta)
 
     f = open('./training_log.txt', 'w')
 
     # --- Training ---
-    for epoch in range(num_epochs):
+    for epoch in range(train_epochs):
         # --- One meta update step ---
         model.train()
         meta_optim.zero_grad()
@@ -122,25 +80,36 @@ def main():
 
         print("epoch {}, val loss {}".format(epoch, val_loss.item()))
         f.write("epoch {}, val loss {}".format(epoch, val_loss.item()))
-    torch.save(model.state_dict(), './updated_Bayes_state_dict.pt')
+        if (epoch % 5) == 4:
+            torch.save(model.state_dict(),
+                './updated_Bayes_reg_{}.pt'.format(epoch))
     f.close()
 
-    # --- Testing ---
-    print("--- Testing ---")
-    x = tasks['test'][0]['x']
-    y = tasks['test'][0]['y']
-    x_range = np.arange(-10, 10, 0.001)
-    xs = torch.as_tensor(np.random.choice(x_range, size=(100, 1)),
-                         dtype=torch.float32)
 
-    print("Bayes before training")
-    model_plot(untrained_model, xs, x, y)
+def test():
+    model = BayesRegressor()
+    model.load_state_dict(torch.load(
+        './updated_Bayes_reg_{}.pt'.format(train_epochs-1)))
+    # Generate tasks
+    num_samples = 100 
+    for data in gen_tasks(1, num_samples):
+        x, y, wf = data
+    x = torch.as_tensor(x, dtype=torch.float32)
+    y = torch.as_tensor(y, dtype=torch.float32)
 
-    print("Bayes after training")
-    model_plot(model, xs, x, y)
+    # Testing
+    model.prep_int_approx(x, y)
+    y_hat = model(x)
+    loss = F.mse_loss(y_hat, y)
+    print("loss", loss)
+    plt.scatter(x, y, label='Ground Truth')
+    plt.scatter(x, y_hat.detach().numpy(), label='Prediction')
+    plt.savefig("model_test.png")
+    plt.show()
 
 
 if __name__ == "__main__":
     print("Starting")
-    main()
+    train()
+    test()
     print("Finished")
