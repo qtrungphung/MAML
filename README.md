@@ -6,4 +6,10 @@ Contact:
 Trung Phung  
 VinAI Research  
 v.trungpq3@vinai.io  
-trungphung.123@gmail.com  
+trungphung.123@gmail.com
+
+Step 1: look at config.py, change directory paths as desire
+Step 2: run init.py
+Step 3: for image net, run download_data.download_miniImageNet, then prepare_mini_imagenet
+for omniglot, run 
+Step 3: run main_your-choice.py
