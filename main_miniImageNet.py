@@ -8,7 +8,7 @@ from learner import MAMLImageNet
 from dataset import MiniImageNet, NShotTaskSampler
 from sklearn.preprocessing import LabelEncoder
 from prepare_mini_imagenet import prepare_mini_imagenet
-from download_data import download
+from download_data import download_miniImageNet
 from config import MODEL_PATH
 
 
@@ -46,7 +46,7 @@ def adapt_model(model, lr, x, y, K: int = 1):
 
 
 def train():
-    download()
+    download_miniImageNet()
     prepare_mini_imagenet()
     background = MiniImageNet('background')
     background_taskloader = torch.utils.data.DataLoader(

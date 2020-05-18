@@ -5,7 +5,7 @@ import numpy as np
 from data_gen import gen_tasks
 # from utils import model_plot
 from learner import BasedRegressor
-from utils import model_test
+from utils import reg_test 
 
 
 def adapt_model(model, lr, x, y, K: int = 1):
@@ -142,7 +142,7 @@ def main():
           .format(len(x), GD_step))
     adapted_model = adapt_model(model, alpha, x, y, K=GD_step)
     # model_plot(adapted_model, xs, x, y)
-    model_test(model)
+    reg_test(model)
 
 if __name__ == "__main__":
     print("Starting")

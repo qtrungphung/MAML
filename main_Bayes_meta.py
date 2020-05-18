@@ -69,7 +69,6 @@ def train():
     for i in range(len(model_stack)):
         torch.save(model_stack[i].state_dict(),
             './updated_BM_state_dict_m{}.pt'.format(i))
-    test()
 
 
 def test():

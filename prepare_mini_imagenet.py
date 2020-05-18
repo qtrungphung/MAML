@@ -13,20 +13,20 @@ import numpy as np
 import shutil
 import os
 
-from config import DATA_PATH
+from config import MINI_IMG_PATH
 from utils import mkdir, rmdir
 
 def prepare_mini_imagenet():
     print("preparing dataset")
     # Clean up folders
-    rmdir(DATA_PATH + '/images_background')
-    rmdir(DATA_PATH + '/images_evaluation')
-    mkdir(DATA_PATH + '/images_background')
-    mkdir(DATA_PATH + '/images_evaluation')
+    rmdir(MINI_IMG_PATH + '/images_background')
+    rmdir(MINI_IMG_PATH + '/images_evaluation')
+    mkdir(MINI_IMG_PATH + '/images_background')
+    mkdir(MINI_IMG_PATH + '/images_evaluation')
 
     # Find class identities
     classes = []
-    for root, _, files in os.walk(DATA_PATH + '/images/'):
+    for root, _, files in os.walk(MINI_IMG_PATH + '/images/'):
         for f in files:
             if f.endswith('.jpg'):
                 classes.append(f[:-12])
@@ -40,13 +40,13 @@ def prepare_mini_imagenet():
 
     # Create class folders
     for c in background_classes:
-        mkdir(DATA_PATH + f'/images_background/{c}/')
+        mkdir(MINI_IMG_PATH + f'/images_background/{c}/')
 
     for c in evaluation_classes:
-        mkdir(DATA_PATH + f'/images_evaluation/{c}/')
+        mkdir(MINI_IMG_PATH + f'/images_evaluation/{c}/')
 
     # Move images to correct location
-    for root, _, files in os.walk(DATA_PATH + '/images'):
+    for root, _, files in os.walk(MINI_IMG_PATH + '/images'):
         for f in tqdm(files, total=600*100):
             if f.endswith('.jpg'):
                 class_name = f[:-12]
@@ -54,5 +54,5 @@ def prepare_mini_imagenet():
                 # Send to correct folder
                 subset_folder = 'images_evaluation' if class_name in evaluation_classes else 'images_background'
                 src = f'{root}/{f}'
-                dst = DATA_PATH + f'/{subset_folder}/{class_name}/{image_name}'
+                dst = MINI_IMG_PATH + f'/{subset_folder}/{class_name}/{image_name}'
                 shutil.copy(src, dst)
