@@ -104,6 +104,37 @@ class MAMLImageNet(nn.Module):
         return x 
         
 
+class MAMLOmniglot(nn.Module):
+    def __init__(self, n_classes, n_filters:int=64):
+        super(MAMLOmniglot, self).__init__()
+        self.n_classes = n_classes
+        self.n_filters = 64 
+
+        self.block1 = ConvBlock(1, n_filters)
+        self.block2 = ConvBlock(n_filters, n_filters)
+        self.block3 = ConvBlock(n_filters, n_filters)
+        self.block4 = ConvBlock(n_filters, n_filters)
+        self.fc = nn.Linear(n_filters, n_classes)
+
+
+    def forward(self, x, params_dict=None):
+        if params_dict is None:
+            params_dict = dict(self.named_parameters())
+        for i in [1,2,3,4]:
+            x = functional_forward(x,
+                                   params_dict[f'block{i}.conv.weight'],
+                                   params_dict[f'block{i}.conv.bias'],
+                                   params_dict[f'block{i}.bn.weight'],
+                                   params_dict[f'block{i}.bn.bias'])
+        x = x.view(x.size(0), -1)
+        x = F.linear(x,
+                     params_dict['fc.weight'],
+                     params_dict['fc.bias'])
+        return x 
+
+
+
+
 class BayesRegressor(nn.Module):
     """ test bayes regression 
     
