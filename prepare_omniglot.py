@@ -83,3 +83,7 @@ def run():
     for root, alphabets, _ in os.walk(prepared_omniglot_location + 'images_evaluation/'):
         for alphabet in sorted(alphabets):
             handle_alphabet(root + alphabet)
+
+
+if __name__=="__main__":
+    run()

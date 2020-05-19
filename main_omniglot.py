@@ -135,10 +135,11 @@ def test():
 
     print("Testing start...")
 
-    model = MAMLOmniglot(k_train, 32).to(device)
+    model = MAMLOmniglot(k_train, 64).to(device)
     model.load_state_dict(torch.load(MODEL_PATH + '/model_state_dict_60000.pt'))
 
-    num_epochs = 20
+    num_epochs = 200
+    total_acc = []
     for epoch in range(num_epochs):
         model.load_state_dict(torch.load(MODEL_PATH + '/model_state_dict_60000.pt'))
         for batch_xs, batch_ys in evaluation_taskloader:
@@ -175,3 +176,5 @@ def test():
                 acc = torch.div(torch.sum(preds==meta_ys), float(len(meta_ys)))
                 meta_acc.append(acc)
             print("try {}, mean acc {}".format(epoch, torch.mean(torch.as_tensor(meta_acc))))
+            total_acc.append(torch.mean(torch.as_tensor(meta_acc)))
+    print("Average acc: {}".format(torch.mean(torch.as_tensor(total_acc))))
