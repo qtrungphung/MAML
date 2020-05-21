@@ -14,14 +14,15 @@ from PIL import Image
 from torchvision import transforms
 from skimage import io
 from tqdm import tqdm
-from config import DATA_PATH 
+from config import DATA_PATH
 
 
 class OmniglotDataset(Dataset):
     def __init__(self, subset):
         """Dataset class representing Omniglot dataset
         # Arguments:
-            subset: Whether the dataset represents the background or evaluation set
+            subset: Whether the dataset represents the background or
+            evaluation set
         """
         if subset not in ('background', 'evaluation'):
             raise(ValueError, 'subset must be one of (background, evaluation)')
@@ -32,10 +33,13 @@ class OmniglotDataset(Dataset):
         # Index of dataframe has direct correspondence to item in dataset
         self.df = self.df.assign(id=self.df.index.values)
 
-        # Convert arbitrary class names of dataset to ordered 0-(num_speakers - 1) integers
+        # Convert arbitrary class names of dataset to ordered
+        # 0-(num_speakers - 1) integers
         self.unique_characters = sorted(self.df['class_name'].unique())
-        self.class_name_to_id = {self.unique_characters[i]: i for i in range(self.num_classes())}
-        self.df = self.df.assign(class_id=self.df['class_name'].apply(lambda c: self.class_name_to_id[c]))
+        self.class_name_to_id = {
+            self.unique_characters[i]: i for i in range(self.num_classes())}
+        self.df = self.df.assign(class_id=self.df['class_name'].apply(
+            lambda c: self.class_name_to_id[c]))
 
         # Create dicts
         self.datasetid_to_filepath = self.df.to_dict()['filepath']
@@ -61,22 +65,26 @@ class OmniglotDataset(Dataset):
 
     @staticmethod
     def index_subset(subset):
-        """Index a subset by looping through all of its files and recording relevant information.
+        """Index a subset by looping through all of its files and
+        recording relevant information.
         # Arguments
             subset: Name of the subset
         # Returns
-            A list of dicts containing information about all the image files in a particular subset of the
+            A list of dicts containing information about all the
+            image files in a particular subset of the
             Omniglot dataset dataset
         """
         images = []
         print('Indexing {}...'.format(subset))
         # Quick first pass to find total for tqdm bar
         subset_len = 0
-        for root, folders, files in os.walk(DATA_PATH + '/Omniglot/images_{}/'.format(subset)):
+        for root, folders, files in os.walk(
+                DATA_PATH + '/Omniglot/images_{}/'.format(subset)):
             subset_len += len([f for f in files if f.endswith('.png')])
 
         progress_bar = tqdm(total=subset_len)
-        for root, folders, files in os.walk(DATA_PATH + '/Omniglot/images_{}/'.format(subset)):
+        for root, folders, files in os.walk(
+                DATA_PATH + '/Omniglot/images_{}/'.format(subset)):
             if len(files) == 0:
                 continue
 
@@ -94,13 +102,14 @@ class OmniglotDataset(Dataset):
 
         progress_bar.close()
         return images
-        
+
 
 class MiniImageNet(Dataset):
     def __init__(self, subset):
         """Dataset class representing miniImageNet dataset
         # Arguments:
-            subset: Whether the dataset represents the background or evaluation set
+            subset: Whether the dataset represents the background or
+            evaluation set
         """
         if subset not in ('background', 'evaluation'):
             raise(ValueError, 'subset must be one of (background, evaluation)')
@@ -111,10 +120,14 @@ class MiniImageNet(Dataset):
         # Index of dataframe has direct correspondence to item in dataset
         self.df = self.df.assign(id=self.df.index.values)
 
-        # Convert arbitrary class names of dataset to ordered 0-(num_speakers - 1) integers
+        # Convert arbitrary class names of dataset
+        # to ordered 0-(num_speakers - 1) integers
         self.unique_characters = sorted(self.df['class_name'].unique())
-        self.class_name_to_id = {self.unique_characters[i]: i for i in range(self.num_classes())}
-        self.df = self.df.assign(class_id=self.df['class_name'].apply(lambda c: self.class_name_to_id[c]))
+        self.class_name_to_id = {
+            self.unique_characters[i]: i for i in range(self.num_classes())}
+        self.df = self.df.assign(
+            class_id=self.df['class_name'].apply(
+                lambda c: self.class_name_to_id[c]))
 
         # Create dicts
         self.datasetid_to_filepath = self.df.to_dict()['filepath']
@@ -143,22 +156,26 @@ class MiniImageNet(Dataset):
 
     @staticmethod
     def index_subset(subset):
-        """Index a subset by looping through all of its files and recording relevant information.
+        """Index a subset by looping through all of its files
+        and recording relevant information.
         # Arguments
             subset: Name of the subset
         # Returns
-            A list of dicts containing information about all the image files in a particular subset of the
+            A list of dicts containing information about
+            all the image files in a particular subset of the
             miniImageNet dataset
         """
         images = []
         print('Indexing {}...'.format(subset))
         # Quick first pass to find total for tqdm bar
         subset_len = 0
-        for root, folders, files in os.walk(DATA_PATH + '/miniImageNet/images_{}/'.format(subset)):
+        for root, folders, files in os.walk(
+                DATA_PATH + '/miniImageNet/images_{}/'.format(subset)):
             subset_len += len([f for f in files if f.endswith('.png')])
 
         progress_bar = tqdm(total=subset_len)
-        for root, folders, files in os.walk(DATA_PATH + '/miniImageNet/images_{}/'.format(subset)):
+        for root, folders, files in os.walk(
+                DATA_PATH + '/miniImageNet/images_{}/'.format(subset)):
             if len(files) == 0:
                 continue
 
@@ -180,25 +197,33 @@ class NShotTaskSampler(Sampler):
     def __init__(self,
                  dataset: torch.utils.data.Dataset,
                  episodes_per_epoch: int = None,
-                 n: int = None,
-                 k: int = None,
-                 q: int = None,
+                 n_shot: int = None,
+                 k_way: int = None,
+                 q_query: int = None,
                  num_tasks: int = 1,
                  fixed_tasks: List[Iterable[int]] = None):
-        """PyTorch Sampler subclass that generates batches of n-shot, k-way, q-query tasks.
-        Each n-shot task contains a "support set" of `k` sets of `n` samples and a "query set" of `k` sets
-        of `q` samples. The support set and the query set are all grouped into one Tensor such that the first n * k
-        samples are from the support set while the remaining q * k samples are from the query set.
-        The support and query sets are sampled such that they are disjoint i.e. do not contain overlapping samples.
+        """PyTorch Sampler subclass that generates
+        batches of n-shot, k-way, q-query tasks.
+        Each n-shot task contains a "support set" of `k` sets of
+        `n` samples and a "query set" of `k` sets of `q` samples.
+        The support set and the query set are all grouped into one Tensor
+        such that the first n * k samples are from the support set
+        while the remaining q * k samples are from the query set.
+        The support and query sets are sampled such that they are disjoint
+        i.e. do not contain overlapping samples.
         # Arguments
-            dataset: Instance of torch.utils.data.Dataset from which to draw samples
-            episodes_per_epoch: Arbitrary number of batches of n-shot tasks to generate in one epoch
-            n_shot: int. Number of samples for each class in the n-shot classification tasks.
+            dataset: Instance of torch.utils.data.Dataset
+            from which to draw samples
+            episodes_per_epoch: Arbitrary number of batches of n-shot tasks
+            to generate in one epoch
+            n_shot: int. Number of samples for each class in the
+            n-shot classification tasks.
             k_way: int. Number of classes in the n-shot classification tasks.
-            q_queries: int. Number query samples for each class in the n-shot classification tasks. (to train meta)
+            q_queries: int. Number query samples for each class in the
+            n-shot classification tasks. (to train meta)
             num_tasks: Number of n-shot tasks to group into a single batch
-            fixed_tasks: If this argument is specified this Sampler will always generate tasks from
-                the specified classes
+            fixed_tasks: If this argument is specified
+            this Sampler will always generate tasks from the specified classes
 
             a batch = samples_per_class * classes_per_task * num_tasks
                     = (n+q) * k * num_tasks
@@ -213,9 +238,9 @@ class NShotTaskSampler(Sampler):
 
         self.num_tasks = num_tasks
         # TODO: Raise errors if initialise badly
-        self.k = k
-        self.n = n
-        self.q = q
+        self.k = k_way
+        self.n = n_shot
+        self.q = q_query
         self.fixed_tasks = fixed_tasks
 
         self.i_task = 0
@@ -230,7 +255,10 @@ class NShotTaskSampler(Sampler):
             for task in range(self.num_tasks):
                 if self.fixed_tasks is None:
                     # Get random classes
-                    episode_classes = np.random.choice(self.dataset.df['class_id'].unique(), size=self.k, replace=False)
+                    episode_classes = np.random.choice(
+                        self.dataset.df['class_id'].unique(),
+                        size=self.k,
+                        replace=False)
                 else:
                     # Loop through classes in fixed_tasks
                     episode_classes = self.fixed_tasks[self.i_task % len(self.fixed_tasks)]

@@ -21,7 +21,6 @@ class Rep(nn.Module):
 
 class BasedRegressor(nn.Module):
     """ Neural network based Regressor for MAML [1]
-    
     forward function has grad and learning rate, to apply
     manually updated weight to computation
     """
@@ -46,6 +45,7 @@ class BasedRegressor(nn.Module):
                      bias=params_dict['fc3.bias'])
         return y
 
+
 class ConvBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels):
@@ -61,9 +61,9 @@ class ConvBlock(nn.Module):
 
 def functional_forward(x, conv_weight, conv_bias, bn_weight, bn_bias):
     x = F.conv2d(input=x,
-                weight=conv_weight,
-                bias=conv_bias,
-                stride=1, padding=1)
+                 weight=conv_weight,
+                 bias=conv_bias,
+                 stride=1, padding=1)
     x = F.batch_norm(x,
                      running_mean=None,
                      running_var=None,
@@ -76,22 +76,29 @@ def functional_forward(x, conv_weight, conv_bias, bn_weight, bn_bias):
 
 
 class MAMLImageNet(nn.Module):
+    """ MAML base learner for mini ImageNet dataset,
+    Each image is 84x84, 3 channels.
+    For n_filter =64, final flatten feature map is 1600
+    """
 
-    def __init__(self, n_classes, n_filters):
+    def __init__(self, n_classes, n_filters: int = 64, H_in: int = 84):
         super(MAMLImageNet, self).__init__()
         self.n_classes = n_classes
         self.n_filters = n_filters
+        # Calculate H_out after 4 ConvBlocks
+        for i in range(4):
+            H_in = int(np.floor(H_in/2))
 
         self.block1 = ConvBlock(3, n_filters)
         self.block2 = ConvBlock(n_filters, n_filters)
         self.block3 = ConvBlock(n_filters, n_filters)
         self.block4 = ConvBlock(n_filters, n_filters)
-        self.fc = nn.Linear(n_filters, n_classes)
+        self.fc = nn.Linear(n_filters*H_in*H_in, n_classes)
 
     def forward(self, x, params_dict=None):
         if params_dict is None:
             params_dict = dict(self.named_parameters())
-        for i in [1,2,3,4]:
+        for i in [1, 2, 3, 4]:
             x = functional_forward(x,
                                    params_dict[f'block{i}.conv.weight'],
                                    params_dict[f'block{i}.conv.bias'],
@@ -101,26 +108,30 @@ class MAMLImageNet(nn.Module):
         x = F.linear(x,
                      params_dict['fc.weight'],
                      params_dict['fc.bias'])
-        return x 
-        
+        return x
+
 
 class MAMLOmniglot(nn.Module):
-    def __init__(self, n_classes, n_filters:int=64):
+    """ MAML based learner for Omniglot dataset"""
+
+    def __init__(self, n_classes, n_filters: int = 64, H_in: int = 26):
         super(MAMLOmniglot, self).__init__()
         self.n_classes = n_classes
-        self.n_filters = 64 
+        self.n_filters = 64
+        # Calculate H_out after 4 ConvBlocks
+        for i in range(4):
+            H_in = int(np.floor(H_in/2))
 
         self.block1 = ConvBlock(1, n_filters)
         self.block2 = ConvBlock(n_filters, n_filters)
         self.block3 = ConvBlock(n_filters, n_filters)
         self.block4 = ConvBlock(n_filters, n_filters)
-        self.fc = nn.Linear(n_filters, n_classes)
-
+        self.fc = nn.Linear(n_filters*H_in*H_in, n_classes)
 
     def forward(self, x, params_dict=None):
         if params_dict is None:
             params_dict = dict(self.named_parameters())
-        for i in [1,2,3,4]:
+        for i in [1, 2, 3, 4]:
             x = functional_forward(x,
                                    params_dict[f'block{i}.conv.weight'],
                                    params_dict[f'block{i}.conv.bias'],
@@ -130,14 +141,53 @@ class MAMLOmniglot(nn.Module):
         x = F.linear(x,
                      params_dict['fc.weight'],
                      params_dict['fc.bias'])
-        return x 
+        return x
 
 
+class MAMLConv(nn.Module):
+    """ MAML based learner for both Omniglot and miniImageNet dataset
+    n_way: number of classes in n_way k_shot classification
+    C_in: number of input channels
+    H_in: height of input image (here input images are square with H_in = W_in)
+    """
+
+    def __init__(self,
+                 n_way,
+                 n_filters: int = 64,
+                 C_in: int = 3,
+                 H_in: int = 84):
+
+        super(MAMLConv, self).__init__()
+        self.n_way = n_way
+        self.n_filters = n_filters
+        # Calculate H_out after 4 ConvBlocks
+        for i in range(4):
+            H_in = int(np.floor(H_in/2))
+
+        self.block1 = ConvBlock(C_in, n_filters)
+        self.block2 = ConvBlock(n_filters, n_filters)
+        self.block3 = ConvBlock(n_filters, n_filters)
+        self.block4 = ConvBlock(n_filters, n_filters)
+        self.fc = nn.Linear(n_filters*H_in*H_in, n_way)
+
+    def forward(self, x, params_dict=None):
+        if params_dict is None:
+            params_dict = dict(self.named_parameters())
+        for i in [1, 2, 3, 4]:
+            x = functional_forward(x,
+                                   params_dict[f'block{i}.conv.weight'],
+                                   params_dict[f'block{i}.conv.bias'],
+                                   params_dict[f'block{i}.bn.weight'],
+                                   params_dict[f'block{i}.bn.bias'])
+        x = x.view(x.size(0), -1)
+        x = F.linear(x,
+                     params_dict['fc.weight'],
+                     params_dict['fc.bias'])
+        return x
 
 
 class BayesRegressor(nn.Module):
-    """ test bayes regression 
-    
+    """ test bayes regression
     prediction for each theta1
     model = g_z (x, theta1)
     Bayes prediction: integrate over theta1:
@@ -187,7 +237,6 @@ class BayesRegressor(nn.Module):
 
     def predict(self, x):
         y_hat = torch.zeros(1)
-        Z = torch.zeros(1)
         rangt = self.rangt + self.max_theta
         for theta1, unnorm_p in zip(rangt, self.unnorm_ps):
             stack = []
@@ -207,6 +256,6 @@ class BayesRegressor(nn.Module):
         with torch.no_grad():
             self.max_theta = torch.zeros(2)
             for j in range(10):
-                y_hat = self.forward(x, y)
+                # y_hat = self.forward(x, y)
                 max_id = torch.argmax(self.unnorm_ps)
                 self.max_theta = self.rangt[max_id]

@@ -40,3 +40,9 @@ def download_miniImageNet():
     download_file_from_google_drive(config.file_id, config.download_dest)
     with zipfile.ZipFile(config.download_dest, "r") as zip_ref:
         zip_ref.extractall(config.MINI_IMG_PATH)
+
+
+if __name__=="__main__":
+    print("Downloading mini-ImageNet")
+    download_miniImageNet()
+    print("Finished")

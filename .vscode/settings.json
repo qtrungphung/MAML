@@ -1,5 +1,6 @@
 {
-    "python.linting.pylintEnabled": true,
+    "python.linting.pylintEnabled": false,
     "python.linting.enabled": true,
-    "python.pythonPath": "/home/trungphung/anaconda3/envs/torch/bin/python"
+    "python.pythonPath": "/home/qtrungphung/anaconda3/envs/torch.gpu/bin/python",
+    "python.linting.flake8Enabled": true
 }

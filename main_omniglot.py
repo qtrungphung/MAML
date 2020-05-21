@@ -1,13 +1,10 @@
 import os
-import shutil
-import config
 import copy
 import torch
 import torch.nn.functional as F
 from learner import MAMLOmniglot
 from dataset import OmniglotDataset, NShotTaskSampler
 from sklearn.preprocessing import LabelEncoder
-import prepare_omniglot
 from config import MODEL_PATH
 
 
@@ -19,17 +16,18 @@ beta = 0.01  # meta learning rate
 # train GD 5 steps
 # meta examples 15
 K = 5  # number of GD steps when adapt to a task
-n_train = 5
-k_train = 5
-q_train = 15
+n_shot = 5
+k_way = 5
+q_query = 15
 num_tasks = 2
-task_samples = (n_train + q_train) * k_train
+task_samples = (n_shot + q_query) * k_way
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 def adapt_model(model, lr, x, y, K: int = 1):
     """Adapt a model to (x,y) set with K GD steps"""
-    
+
     optim = torch.optim.SGD(model.parameters(), lr=lr)
     for k in range(K):
         # forward
@@ -45,22 +43,21 @@ def adapt_model(model, lr, x, y, K: int = 1):
 
 
 def train():
-    # prepare_omniglot.run()
     background = OmniglotDataset('background')
     background_taskloader = torch.utils.data.DataLoader(
         background,
         batch_sampler=NShotTaskSampler(
             dataset=background,
             episodes_per_epoch=60000,
-            n=n_train,
-            k=k_train,
-            q=q_train,
+            n_shot=n_shot,
+            k_way=k_way,
+            q_query=q_query,
             num_tasks=num_tasks),
         num_workers=8
     )
 
     # Model
-    model = MAMLOmniglot(k_train).to(device)
+    model = MAMLOmniglot(k_way).to(device)
     torch.save(model.state_dict(), MODEL_PATH + '/init_MAML_Omniglot.pt')
     meta_optim = torch.optim.Adam(model.parameters(), lr=beta)
 
@@ -77,16 +74,16 @@ def train():
             # --- One meta update step ---
             meta_optim.zero_grad()
             for i_task in range(0, len(batch_xs), task_samples):
-                task_xs = batch_xs[i_task : i_task + task_samples]
-                task_ys = batch_ys[i_task : i_task + task_samples]
+                task_xs = batch_xs[i_task:i_task + task_samples]
+                task_ys = batch_ys[i_task:i_task + task_samples]
                 encoder = LabelEncoder()
                 task_ys_en = encoder.fit_transform(task_ys)
                 task_ys_en = torch.as_tensor(task_ys_en, dtype=torch.long)
 
-                train_xs = task_xs[:n_train*k_train].to(device)
-                train_ys = task_ys_en[:n_train*k_train].to(device)
-                meta_xs = task_xs[n_train*k_train:].to(device)
-                meta_ys = task_ys_en[n_train*k_train:].to(device)
+                train_xs = task_xs[:n_shot*k_way].to(device)
+                train_ys = task_ys_en[:n_shot*k_way].to(device)
+                meta_xs = task_xs[n_shot*k_way:].to(device)
+                meta_ys = task_ys_en[n_shot*k_way:].to(device)
 
                 fast_weights = dict(model.named_parameters())
 
@@ -112,9 +109,11 @@ def train():
             # Meta update
             meta_optim.step()
             count += 1
-            if (count%5000) == 0:
-                torch.save(model.state_dict(), MODEL_PATH + '/model_state_dict_{}.pt'.format(count))
-            print("\r ", count, end = "")
+            if (count % 5000) == 0:
+                torch.save(
+                    model.state_dict(),
+                    MODEL_PATH + '/model_state_dict_{}.pt'.format(count))
+            print("\r ", count, end="")
     os.rename(MODEL_PATH, "/vinai/trungpq3/Omniglot")
 
 
@@ -125,9 +124,9 @@ def test():
         batch_sampler=NShotTaskSampler(
             dataset=evaluation,
             episodes_per_epoch=1,
-            n=n_train,
-            k=k_train,
-            q=q_train,
+            n_shot=n_shot,
+            k_way=k_way,
+            q_query=q_query,
             num_tasks=num_tasks),
         num_workers=8
     )
@@ -135,29 +134,31 @@ def test():
 
     print("Testing start...")
 
-    model = MAMLOmniglot(k_train, 64).to(device)
-    model.load_state_dict(torch.load(MODEL_PATH + '/model_state_dict_60000.pt'))
+    model = MAMLOmniglot(k_way, 64).to(device)
+    model.load_state_dict(torch.load(
+        MODEL_PATH + '/model_state_dict_60000.pt'))
 
     num_epochs = 200
     total_acc = []
     for epoch in range(num_epochs):
-        model.load_state_dict(torch.load(MODEL_PATH + '/model_state_dict_60000.pt'))
+        model.load_state_dict(torch.load(
+            MODEL_PATH + '/model_state_dict_60000.pt'))
         for batch_xs, batch_ys in evaluation_taskloader:
             test_model = copy.deepcopy(model)
             opt = torch.optim.SGD(test_model.parameters(), lr=0.01)
             meta_acc = []
             # --- One meta update step ---
             for i_task in range(0, len(batch_xs), task_samples):
-                task_xs = batch_xs[i_task : i_task + task_samples]
-                task_ys = batch_ys[i_task : i_task + task_samples]
+                task_xs = batch_xs[i_task:i_task + task_samples]
+                task_ys = batch_ys[i_task:i_task + task_samples]
                 encoder = LabelEncoder()
                 task_ys_en = encoder.fit_transform(task_ys)
                 task_ys_en = torch.as_tensor(task_ys_en, dtype=torch.long)
 
-                train_xs = task_xs[:n_train*k_train].to(device)
-                train_ys = task_ys_en[:n_train*k_train].to(device)
-                meta_xs = task_xs[n_train*k_train:].to(device)
-                meta_ys = task_ys_en[n_train*k_train:].to(device)
+                train_xs = task_xs[:n_shot*k_way].to(device)
+                train_ys = task_ys_en[:n_shot*k_way].to(device)
+                meta_xs = task_xs[n_shot*k_way:].to(device)
+                meta_ys = task_ys_en[n_shot*k_way:].to(device)
 
                 # Adapt to a task
                 for k in range(K):
@@ -173,8 +174,10 @@ def test():
                 # These gradients are stacked up for all tasks
                 y_meta_hat = test_model(meta_xs)
                 _, preds = torch.max(y_meta_hat, 1)
-                acc = torch.div(torch.sum(preds==meta_ys), float(len(meta_ys)))
+                acc = torch.div(
+                    torch.sum(preds == meta_ys), float(len(meta_ys)))
                 meta_acc.append(acc)
-            print("try {}, mean acc {}".format(epoch, torch.mean(torch.as_tensor(meta_acc))))
+            print("try {}, mean acc {}".format(
+                epoch, torch.mean(torch.as_tensor(meta_acc))))
             total_acc.append(torch.mean(torch.as_tensor(meta_acc)))
     print("Average acc: {}".format(torch.mean(torch.as_tensor(total_acc))))

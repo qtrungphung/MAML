@@ -1,6 +1,3 @@
-from utils import mkdir, rmdir
-import os
-
 # Download Mini ImageNet dataset
 DATA_PATH = './data'
 MINI_IMG_PATH = DATA_PATH + '/miniImageNet'
@@ -11,5 +8,4 @@ download_dest = MINI_IMG_PATH + '/images.zip'
 extract_dest = MINI_IMG_PATH + '/images'
 
 # Model save dir
-MODEL_PATH = './model'
-
+MODEL_PATH = '/vinai/trungpq3/MAML_model'
