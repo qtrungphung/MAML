@@ -210,7 +210,7 @@ def main():
         )
     else:
         print("Test mean acc: {}".format(
-            torch.mean(torch.as_tensor(epoch_acc))))
+            torch.mean(torch.as_tensor(total_acc))))
 
 
 if __name__ == '__main__':
