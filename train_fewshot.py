@@ -17,6 +17,33 @@ def main():
     # Support set = n_way*k_shot
     # Query set = n_way*q_query
 
+    # Specific settings:
+
+    # Omniglot
+    # 5_ways
+    #     inner-lr = 0.4
+    #     inner-train-steps = 1, inner-val-steps = 3
+    #     meta-batch-sz = 32
+    # 20_ways
+    #     inner-lr = 0.1
+    #     inner-train-steps = 5, inner-val-steps = 5
+    #     meta-batch-sz = 16
+
+    # MiniImageNet
+    # both 5_way 1_shot and 5_way 5_shot
+    #     inner-lr = 0.01
+    #     inner-train-steps = 5, inner-val-steps = 10
+    # 1-shot
+    #     meta-batch-sz = 4
+    # 5-shot
+    #     meta-batch-sz = 2
+
+    # General settings
+    #     q_query = 15
+    #     meta-lr = 0.01
+    #     epochs: 60000
+    #     epoch-len = 1
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default='train', type=str)
     parser.add_argument('--dataset', default='miniimagenet', type=str)
@@ -24,14 +51,14 @@ def main():
     parser.add_argument('--k-shot', default=5, type=int)
     parser.add_argument('--q-query', default=15, type=int)
     parser.add_argument('--inner-lr', default=0.01, type=float)
-    parser.add_argument('--inner-train-steps', default=1, type=int)
-    parser.add_argument('--inner-val-steps', default=1, type=int)
+    parser.add_argument('--inner-train-steps', default=5, type=int)
+    parser.add_argument('--inner-val-steps', default=10, type=int)
     parser.add_argument('--meta-lr', default=0.01, type=float)
     # tasks per batch
-    parser.add_argument('--meta-batch-sz', default=32, type=int)
-    parser.add_argument('--epochs', default=50, type=int)
+    parser.add_argument('--meta-batch-sz', default=2, type=int)
+    parser.add_argument('--epochs', default=60, type=int)
     # num batches per epoch
-    parser.add_argument('--epoch-len', default=100, type=int)
+    parser.add_argument('--epoch-len', default=1000, type=int)
     parser.add_argument('--save-name', default='fs', type=str)
     args = parser.parse_args()
 
@@ -105,6 +132,7 @@ def main():
 
     # --- Training ---
     print("{} is starting...".format(args.mode))
+    total_acc = []
     for epoch in range(args.epochs):
         # An epoch = list of episodes
         # An episode = A meta_batch
@@ -171,8 +199,18 @@ def main():
                     MODEL_PATH + '/' + args.save_name + '_{}.pt'.format(epoch)
                 )
         else:
-            print("Mean acc {}".format(
-                torch.mean(torch.as_tensor(epoch_acc))))
+            epoch_acc = torch.mean(torch.as_tensor(epoch_acc))
+            print("Epoch mean acc {}".format(epoch_acc))
+            total_acc.append(epoch_acc)
+    # final model
+    if args.mode == 'train':
+        torch.save(
+            model.state_dict(),
+            MODEL_PATH + '/' + args.save_name + '_{}_final.pt'.format(epoch)
+        )
+    else:
+        print("Test mean acc: {}".format(
+            torch.mean(torch.as_tensor(epoch_acc))))
 
 
 if __name__ == '__main__':
